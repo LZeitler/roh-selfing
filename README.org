@@ -1,0 +1,113 @@
+#+options: toc:2
+#+startup: shrink
+#+title: Repository for the paper "Using runs of homozygosity and machine learning to disentangle sources of inbreeding and infer self-fertilization rates"
+#+author: Leo Zeitler, Kimberly J. Gilbert
+
+* Description
+
+** What this is
+   This is a repository to estimate selfing rate from runs of homozygosity for a population in a vcf file. You can also recreate simulations and plots for the manuscript "Using runs of homozygosity and machine learning to disentangle sources of inbreeding and infer self-fertilization rates". For more information please refer to https://www.biorxiv.org/content/10.1101/2024.02.20.581206v1. If you use or adapt our code, data, output or plots, please cite this manuscript.
+   
+   If you have additional questions regarding running our models or recreating our results, feel free to open an issue.
+
+* How to estimate selfing rates of you own data
+  You can use our *pretrained models* to estimate selfing rates in your own data. We provide multiple models and a script to run the predictions. The computations is very light weight and requires only few computational resources as long as the *requirements* are satisfied.
+
+** Requirements
+
+- R (>4.2.2)
+  - dplyr
+  - data.table
+  - caret
+  - optparse
+- bcftools 1.18.
+  We highly recommend *against using earlier versions* of bcftools since the training was done using 1.18. There was a change in previous versions of bcftools ROH that affects the calculation of ROHs.
+- plink 1.90
+- vcftools 0.1.15
+
+** Prepare input files
+First we prepare the input files for the models. The algorithm will only use the input files specified in the model (see table below), but the wrapper script requires all input files, even if you just want to use ROHs for the prediction.
+
+#+begin_src
+$FILE # a vcf.gz file
+OUTNAME=$(basename $FILE)
+plink  --vcf $FILE --het --out $OUTNAME # *.het file
+vcftools --gzvcf $FILE --TajimaD 100000 --out $OUTNAME # *.Tajima.D file
+bcftools roh -O r -o rohoutput.txt $FILE  # calculate ROHs
+#+end_src
+
+In addition to these input files you will also require maximum chromosome lengths. These can be easily obtained with the following commands.
+
+#+begin_src bash
+samtools faidx your_reference_genome.fasta
+cut -f1-2 your_reference_genome.fasta.fai > your_reference_genome.fasta.lengths
+#+end_src
+
+** Choose a model
+   You can try estimating selfing rates just from ROH, just from F and Tajima's D, or with both. We recommend using the sequential model, which uses ROH+F+Tajima's D and also estimates a rough census size (~Ncurrent~).
+   
+   | Model Name    | File Name                   | Description                                                 | Model ID            |
+   |               |                             | <30>                                                        | <10>                |
+   |---------------+-----------------------------+-------------------------------------------------------------+---------------------|
+   | RF-sequential | rohSelfing_Sequential_N.RData | sequential model, same data as RF-full, classification part | 202310021917048AtJy |
+   | RF-sequential | rohSelfing_Sequential.RData | sequential model, same data as RF-full, regression part     | 202310021917048AtJy |
+   | RF-full       | rohSelfing_Full.RData       | regression RF, uses ROH, F, Tajima's D                      | 20231002191703IfZEj |
+   | RF-ROH        | rohSelfing_ROH.RData        | regression RF, uses only ROH statistics                     | 20231002191703bwG5E |
+   | RF-stats      | rohSelfing_Stats.RData      | regression RF, uses only F and Tajima's D                   | 20231002191703RXUjU |
+
+
+** Run predictions
+Now apply the model to your prepared data. There are two scripts you can call with ~Rscript~. ~randomForestRunEmpirical_Sequential.R~ runs the sequential model, ~randomForestRunEmpirical.R~ runs other 3 models.
+
+*** Sequential model
+Replace the dummy filenames with your actual data in the following command. 
+
+#+begin_src bash
+  Rscript scripts/randomForestRunEmpirical_Sequential.R \
+  --modelFileSelf models/rohSelfing_Sequential.RData \
+  --modelFileN models/rohSelfing_Sequential_N.RData \
+  --fisFile your.vcf.gz.het \
+  --tajimaFile your.vcf.gz.Tajima.D \
+  --rohFile your.rohoutput.txt \
+  --chromosomeLengths your_reference_genome.fasta.lengths \
+  --out your.selfingrates.txt
+#+end_src
+
+
+*** Other models (optional) 
+Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model (not sequential).
+#+begin_src bash
+  Rscript scripts/randomForestRunEmpirical.R \
+  --modelFile models/rohSelfing_Full.RData \
+  --fisFile your.vcf.gz.het \
+  --tajimaFile your.vcf.gz.Tajima.D \
+  --rohFile your.rohoutput.txt \
+  --chromosomeLengths your_reference_genome.fasta.lengths \
+  --out your.selfingrates.txt
+#+end_src>
+
+
+** Output files
+   The output file specified in the previous command contains one selfing rate per chromosome/linkage group. I.e., if your organism has 8 chromosomes, the file will contain 8 lines.
+
+   The other file that is generated (~*.params~) contains parameters from ROH and summary stats for the population, as well as N and selfing rate estimates (sequential model only). This file has a header.
+   ~chr,lengthVar,countVar,propVar,roh_count_ind,proportionInROH,lengthMedian,gapMedian,gapVar,TajimaD,Fis,selfRate,N~
+   
+   meaning: chromosome id, ROH length variance, ROH count variance, F_ROH variance, ROH count, F_ROH, ROH length, ROH gap, ROH gap variance, Tajima's D, F, selfing rate, binned census size (sequential model only).
+   
+
+* TODO How to reproduce manuscript data and plots
+   
+** Scripts
+   There are intermediate files for all the plots, as output from various scripts hosted here. This allows to recreate the plots without rerunning slim, etc.
+   Should there be missing input files or any other problems please feel free to open an issue.
+
+** Reproduce Figures
+   All figures can be reproduced using the provided scripts and supplementary data. 
+
+** Requirements
+- R (tested on 4.1.3)
+- SLiM version 3.7.1
+- bcftools 1.18
+- plink 1.90
+- vcftools 0.1.15
