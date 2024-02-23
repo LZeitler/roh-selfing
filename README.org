@@ -26,22 +26,24 @@
 - vcftools 0.1.15
 
 ** Prepare input files
-First we prepare the input files for the models. The algorithm will only use the input files specified in the model (see table below), but the wrapper script requires all input files, even if you just want to use ROHs for the prediction.
+First we prepare the input files for the models. The algorithm will only use the input files specified in the model (see table below), but the wrapper scripts require all input files (Tajima, F, ROHs), even if you just want to use ROHs for the prediction.
 
 #+begin_src
-$FILE # a vcf.gz file
+FILE=your.vcf.gz
 OUTNAME=$(basename $FILE)
 plink  --vcf $FILE --het --out $OUTNAME # *.het file
 vcftools --gzvcf $FILE --TajimaD 100000 --out $OUTNAME # *.Tajima.D file
 bcftools roh -O r -o rohoutput.txt $FILE  # calculate ROHs
 #+end_src
 
-In addition to these input files you will also require maximum chromosome lengths. These can be easily obtained with the following commands.
+In addition to these input files you will also require chromosome lengths for your reference. These can be easily obtained with the following commands.
 
 #+begin_src bash
 samtools faidx your_reference_genome.fasta
 cut -f1-2 your_reference_genome.fasta.fai > your_reference_genome.fasta.lengths
 #+end_src
+
+The output will be a tab separated file with two columns, and no header: chromosome ID, length in bp.
 
 ** Choose a model
    You can try estimating selfing rates just from ROH, just from F and Tajima's D, or with both. We recommend using the sequential model, which uses ROH+F+Tajima's D and also estimates a rough census size (~Ncurrent~).
@@ -90,14 +92,14 @@ Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model
 ** Output files
    The output file specified in the previous command contains one selfing rate per chromosome/linkage group. I.e., if your organism has 8 chromosomes, the file will contain 8 lines.
 
-   The other file that is generated (~*.params~) contains parameters from ROH and summary stats for the population, as well as N and selfing rate estimates (sequential model only). This file has a header.
+   The other file that is generated (~*.params~) contains parameters from ROH and summary stats for the population, as well as N and selfing rate estimates (sequential model only). This file has a header:
    ~chr,lengthVar,countVar,propVar,roh_count_ind,proportionInROH,lengthMedian,gapMedian,gapVar,TajimaD,Fis,selfRate,N~
    
    meaning: chromosome id, ROH length variance, ROH count variance, F_ROH variance, ROH count, F_ROH, ROH length, ROH gap, ROH gap variance, Tajima's D, F, selfing rate, binned census size (sequential model only).
    
 
 * TODO How to reproduce manuscript data and plots
-   
+(unfinished, files are missing in repository)   
 ** Scripts
    There are intermediate files for all the plots, as output from various scripts hosted here. This allows to recreate the plots without rerunning slim, etc.
    Should there be missing input files or any other problems please feel free to open an issue.
