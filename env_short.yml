@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - r-essentials=4.2
+  - r-dplyr
+  - r-data.table
+  - r-optparse
+  - conda-ecosystem-user-package-isolation

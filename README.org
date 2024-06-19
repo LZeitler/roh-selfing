@@ -25,6 +25,8 @@
 - plink 1.90
 - vcftools 0.1.15
 
+See also env_short.yml for the a conda installation of R requirements.
+
 ** Prepare input files
 First we prepare the input files for the models. The algorithm will only use the input files specified in the model (see table below), but the wrapper scripts require all input files (Tajima, F, ROHs), even if you just want to use ROHs for the prediction.
 
@@ -48,14 +50,14 @@ The output will be a tab separated file with two columns, and no header: chromos
 ** Choose a model
    You can try estimating selfing rates just from ROH, just from F and Tajima's D, or with both. We recommend using the sequential model, which uses ROH+F+Tajima's D and also estimates a rough census size (~Ncurrent~).
    
-   | Model Name    | File Name                   | Description                                                 | Model ID            |
-   |               |                             | <30>                                                        | <10>                |
-   |---------------+-----------------------------+-------------------------------------------------------------+---------------------|
+   | Model Name    | File Name                     | Description                                                 | Model ID            |
+   |               | <25>                          | <10>                                                        | <20>                |
+   |---------------+-------------------------------+-------------------------------------------------------------+---------------------|
    | RF-sequential | rohSelfing_Sequential_N.RData | sequential model, same data as RF-full, classification part | 202310021917048AtJy |
-   | RF-sequential | rohSelfing_Sequential.RData | sequential model, same data as RF-full, regression part     | 202310021917048AtJy |
-   | RF-full       | rohSelfing_Full.RData       | regression RF, uses ROH, F, Tajima's D                      | 20231002191703IfZEj |
-   | RF-ROH        | rohSelfing_ROH.RData        | regression RF, uses only ROH statistics                     | 20231002191703bwG5E |
-   | RF-stats      | rohSelfing_Stats.RData      | regression RF, uses only F and Tajima's D                   | 20231002191703RXUjU |
+   | RF-sequential | rohSelfing_Sequential.RData   | sequential model, same data as RF-full, regression part     | 202310021917048AtJy |
+   | RF-full       | rohSelfing_Full.RData         | regression RF, uses ROH, F, Tajima's D                      | 20231002191703IfZEj |
+   | RF-ROH        | rohSelfing_ROH.RData          | regression RF, uses only ROH statistics                     | 20231002191703bwG5E |
+   | RF-stats      | rohSelfing_Stats.RData        | regression RF, uses only F and Tajima's D                   | 20231002191703RXUjU |
 
 
 ** Run predictions
@@ -98,14 +100,17 @@ Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model
    meaning: chromosome id, ROH length variance, ROH count variance, F_ROH variance, ROH count, F_ROH, ROH length, ROH gap, ROH gap variance, Tajima's D, F, selfing rate, binned census size (sequential model only).
    
 
-* TODO How to reproduce manuscript data and plots
-(unfinished, files are missing in repository)   
+* How to reproduce manuscript data and plots
+
 ** Scripts
    There are intermediate files for all the plots, as output from various scripts hosted here. This allows to recreate the plots without rerunning slim, etc.
    Should there be missing input files or any other problems please feel free to open an issue.
 
 ** Reproduce Figures
-   All figures can be reproduced using the provided scripts and supplementary data. 
+   All figures can be reproduced using the provided scripts and supplementary data.
+   For all main figure and most of the supplementary plots, run ms_plots.R
+   For comparing different models (supplementary plots S5, S6), run allmodelplots.R.
+   For subsampling and popstructre results (supplementary plots S7, S8), run n10eval.R or admixpopstructure.R.
 
 ** Requirements
 - R (tested on 4.1.3)
@@ -113,3 +118,6 @@ Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model
 - bcftools 1.18
 - plink 1.90
 - vcftools 0.1.15
+
+See also env.yml for the a conda installation of R requirements.
+  
