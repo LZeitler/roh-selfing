@@ -111,6 +111,15 @@ Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model
    For all main figure and most of the supplementary plots, run ms_plots.R
    For comparing different models (supplementary plots S5, S6), run allmodelplots.R.
    For subsampling and popstructre results (supplementary plots S7, S8), run n10eval.R or admixpopstructure.R.
+   
+** Reproduce Simulations
+   If you want to rerun slim, there is a snakemake file in [[scripts/snake]]. This file contains a rule that calls [[WriteSlimInputs_ROHs_snakemake.R]] within the same folder. This script creates input slim scripts, which are then executed in the next rule. If you are unfamiliar with snakemake, you may choose to recreate the slim scripts by running that R script with the correct arguments, which will output the input files required for slim to run the desired parameter combination.
+
+   The arguments for the R script are
+
+#+begin_src bash
+Rscript --vanilla WriteSlimInputs_ROHs_snakemake.R $DIR <replicate number> <population size> <demography> <mating system> <mating percent> <neutral (TRUE/FALSE)> <mutation rate> <seed> <total number of replicates>
+#+end_src>
 
 ** Requirements
 - R (tested on 4.1.3)

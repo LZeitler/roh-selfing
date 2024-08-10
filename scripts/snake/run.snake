@@ -1,0 +1,246 @@
+import pandas as pd
+from itertools import product
+import subprocess
+import os
+import numpy as np
+
+def expand_grid(data_dict):
+    rows = product(*data_dict.values())
+    return pd.DataFrame.from_records(rows, columns=data_dict.keys())
+
+# workdir
+# workdir: config['workpath']
+
+reps = 100                       # number of replicates
+
+demography = [                  # popsize can be assign with a number following the demography
+    "onepop10",
+    "onepop100",
+    "onepop1000",
+    "onepop10000",
+    "bneckShort10000",
+    "bneckLong10000",
+    "bneckGrad10000",
+    "twoPop10000",
+    "twoPopIsol10000",
+    "bneckShort1000",
+    "bneckLong1000",
+    "bneckGrad1000",
+    "twoPop1000",
+    "twoPopIsol1000",
+    "twoPop100",
+    "twoPopIsol100",
+    "twoPop10",
+    "twoPopIsol10",
+]
+neu = [                         # only neutral mutations?
+    "TRUE",                     # only neutral
+    # "FALSE"                     # with selection
+]
+mu = [                          # mutation rate
+    # 1.4e-7,                     # twice
+    7e-8,                       # same as range expansion
+    # 3.5e-8                      # half
+]
+mating = [                      # mating systems and rates
+    "outc100",
+    "self1","self10",
+    "self20","self30","self40",
+    # "asex50","asex90","asex99","asex100",
+    "self50",
+    "self60","self70","self80",
+    "self90","self99","self100"
+]
+
+nreps = np.arange(reps)
+
+EXT = [".roh",".Tajima.D",".ibc",".het",".eigenvec"]
+
+###################
+# snakemake rules #
+###################
+
+rule all:
+    input:
+        expand("sims_summaries/demographies_summary{ext}.txt",ext=EXT)
+
+rule prepSim:
+    input:
+        "WriteSlimInputs_ROHs_snakemake.R"
+    output:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/infile.txt"
+    params:
+        rcommand=config["rcommand"],
+        seed=1234567,
+        reps=reps
+    resources:
+        mem_mb = 1024,
+        time = 5
+    shell:
+        """
+        {params[0]}
+        
+        # define full dir name
+        FULLDIRNAME=$(dirname {output})
+        # mkdir $FULLDIRNAME
+        
+        # define population size
+        POPSIZE=$(grep -Po "\d+" <<< {wildcards.demography})
+        [[ -z "$POPSIZE" ]] && POPSIZE=50000  # if popsize is undefined assign 50k
+        
+        # define demography
+        DEMOGRAPHY=$(grep -Po "\D+" <<< {wildcards.demography})
+        
+        # define mating
+        MATING_SYS=$(grep -Po "\D+" <<< {wildcards.mating})
+        MATING_PERC=$(grep -Po "\d+" <<< {wildcards.mating})
+        
+        # make input
+        Rscript --vanilla {input} $FULLDIRNAME {wildcards.rep} $POPSIZE $DEMOGRAPHY $MATING_SYS $MATING_PERC {wildcards.neu} {wildcards.mu} {params.seed} {params.reps}
+        """
+
+rule sim:
+    input:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/infile.txt"
+    output:
+        temp("rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf")
+    params:
+        slim = config["slimpath"],
+    threads:
+        1
+    log:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/slim.log"
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 16384,
+        time = lambda wildcards, attempt: attempt * 60 * 80
+    shell:
+        """
+        FULLDIRNAME=$(dirname {input})
+        cd $FULLDIRNAME
+        {params.slim} infile.txt > slim.log
+        """
+
+rule compress:
+    input:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf"
+    output:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz"
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        time = lambda wildcards, attempt: attempt * 20
+    log:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/compress.log"
+    shell:
+        """
+        module load vital-it/7 UHTS/Analysis/samtools/1.10
+        DNAME=$(dirname {input})
+        
+        FILES="$DNAME/*.vcf"    # do it for all vcfs in target dir
+        for FILE in $FILES
+        do
+            ## compress vcf to save some space
+            bgzip -f $FILE
+            tabix -p vcf $FILE.gz
+        done
+        """
+
+rule roh:
+    input:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz"
+    output:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz.Demographies{ext}"
+    wildcard_constraints:
+        ext = EXT[0]
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        time = lambda wildcards, attempt: attempt * 20
+    log:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf{ext}.log"
+    shell:
+        """
+        DNAME=$(dirname {input})
+        
+        ## clear output if any, because we aggregate with arbitrary wildcards later
+        rm -rf $DNAME/*.Demographies.roh
+        
+        FILES="$DNAME/*.vcf.gz"    # do it for all vcfs in target dir
+        for FILE in $FILES
+        do
+            bcftools roh -GInf -O r -o $FILE.Demographies.roh -eGT,- $FILE >> {log}
+        done
+        """
+
+rule summary_stats:
+    input:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz"
+    output:
+        expand("rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz.Demographies{ext}", ext=EXT[1:], allow_missing=True)
+    wildcard_constraints:
+        ext = EXT[1:]
+    params:
+        config["rcommand"],
+        " ".join(EXT[1:])
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        time = lambda wildcards, attempt: attempt * 20
+    log:
+        "rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/summary_stats.log"
+    shell:
+        """
+        module load vital-it/7 UHTS/Analysis/plink/1.90 UHTS/Analysis/vcftools/0.1.15
+        {params[0]}
+        
+        DNAME=$(dirname {input})
+        
+        ## clear output if any
+        for EX in {params[1]}
+        do
+            rm -rf $DNAME/*.Demographies$EX
+        done
+        
+        ## calculate new output
+        FILES="$DNAME/*.vcf.gz"    # do it for all vcfs in target dir
+        for FILE in $FILES
+        do
+            plink --vcf $FILE --het --ibc --out $FILE.Demographies >> {log} 2>&1  # *.ibc/*.het
+            vcftools --gzvcf $FILE --TajimaD 100000 --out $FILE.Demographies >> {log} 2>&1   # *.Tajima.D
+            
+            ## PCA - pruning and calc
+            # TMP="$(echo $FILE)".tmp
+            # plink --vcf $FILE --set-missing-var-ids @:# --recode --out $TMP.0  # pruning
+            # plink --file $TMP.0 --indep-pairwise 100 10 0.1 --out $TMP.1       # pruning
+            # plink --file $TMP.0 --extract $TMP.1.prune.in --pca 5 --out $FILE  # pruning
+            plink --vcf $FILE --pca 5 --out $FILE.Demographies # comment out for pruning
+            # R --slave -e "d=read.table(paste0('$(echo $FILE)','.Demographies.eigenvec'));pdf(paste0('$(echo $FILE)','.Demographies.pca.pdf'));plot(as.numeric(d[,'V3']),as.numeric(d[,'V4']));dev.off()"  # plot
+        
+        done
+        """    
+
+rule summarize:
+    input:
+        expand("rohOutput_Demo{demography}_Neu{neu}_Mu{mu}_Mating{mating}_Rep{rep}/out.vcf.gz.Demographies{{ext}}",
+               demography=demography,
+               neu=neu,
+               mu=mu,
+               mating=mating,
+               rep=nreps)
+    output:
+        "sims_summaries/demographies_summary{ext}.txt"
+    log:
+        "summarize{ext}.log"
+    resources:
+        mem_mb = lambda wildcards, attempt: attempt * 2048,
+        time = lambda wildcards, attempt: attempt * 20
+    shell:
+        """
+        VNAME="{input}"
+        for VCF in $VNAME
+        do
+           DNAME=$(dirname $VCF)
+           for DIR in $DNAME
+           do
+              awk '/^[^#]/{{print $0"\t"FILENAME}}' $DIR/*.Demographies{wildcards.ext} >> {output} 2> {log}
+           done
+        done
+        """
+
