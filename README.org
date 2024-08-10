@@ -61,7 +61,7 @@ The output will be a tab separated file with two columns, and no header: chromos
 
 
 ** Run predictions
-Now apply the model to your prepared data. There are two scripts you can call with ~Rscript~. ~randomForestRunEmpirical_Sequential.R~ runs the sequential model, ~randomForestRunEmpirical.R~ runs other 3 models.
+Now apply the model to your prepared data. There are two scripts you can call with ~Rscript~. ~randomForestRunEmpirical_Sequential.R~ runs the sequential model, ~randomForestRunEmpirical.R~ runs the other 3 models.
 
 *** Sequential model
 Replace the dummy filenames with your actual data in the following command. 
