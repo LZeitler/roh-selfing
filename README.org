@@ -6,7 +6,7 @@
 * Description
 
 ** What this is
-   This is a repository to estimate selfing rate from runs of homozygosity for a population in a vcf file. You can also recreate simulations and plots for the manuscript "Using runs of homozygosity and machine learning to disentangle sources of inbreeding and infer self-fertilization rates". For more information please refer to https://www.biorxiv.org/content/10.1101/2024.02.20.581206v1. If you use or adapt our code, data, output or plots, please cite this manuscript.
+   This is a repository to estimate selfing rate from runs of homozygosity for a population in a vcf file. You can also recreate simulations and plots for the manuscript "Using runs of homozygosity and machine learning to disentangle sources of inbreeding and infer self-fertilization rates". For more information please refer to https://academic.oup.com/gbe/article/16/7/evae139/7700294. If you use or adapt our code, data, output or plots, please cite this manuscript.
    
    If you have additional questions regarding running our models or recreating our results, feel free to open an issue.
 
@@ -94,7 +94,7 @@ Here, you can replace ~models/rohSelfing_Full.RData~ with the ROH or stats model
 ** Output files
    The output file specified in the previous command contains one selfing rate per chromosome/linkage group. I.e., if your organism has 8 chromosomes, the file will contain 8 lines.
 
-   The other file that is generated (~*.params~) contains parameters from ROH and summary stats for the population, as well as N and selfing rate estimates (sequential model only). This file has a header:
+   The other file that is generated (~*.params~) contains parameters from ROH and summary stats for the population, as well as N (the binned census size) and selfing rate estimates (sequential model only). This file has a header:
    ~chr,lengthVar,countVar,propVar,roh_count_ind,proportionInROH,lengthMedian,gapMedian,gapVar,TajimaD,Fis,selfRate,N~
    
    meaning: chromosome id, ROH length variance, ROH count variance, F_ROH variance, ROH count, F_ROH, ROH length, ROH gap, ROH gap variance, Tajima's D, F, selfing rate, binned census size (sequential model only).
